@@ -12,21 +12,27 @@ db_default = "lz4_1"
 binary_default = "/home/cx/workspace/target_group/lz4/lz4"
 input_default = "/home/cx/workspace/target_group/lz4/lz4_crash_1"
 log_default = "/home/cx/workspace/asan.log.28665"
-para_default = "-d"
+cmd_default = "\n"
 bug_list = []
 ##################################################################################
-def load_crash():
+def load_crash(url,db,input):
 	loadMongo = CDLL('./crash-analyze/loadMongo.so')
-	loadMongo.load_mongoSeed(url_default,db_default,input_default)
-def auto_input(in_dir,binary,para):
+	loadMongo.load_mongoSeed(url,db,input)
+def auto_input(in_dir,cmd):
+	if cmd.index('@@') == -1:
+		print ("must provide @@ as input location!!")
+		exit(0)
 	if os.path.isdir(in_dir):
 		files = os.listdir(in_dir)
 		for f in files:
 			if not os.path.isdir(f):
 				#file = open('lz4_crash/'+file)
 				print (f + '\n')
-				cmd = binary + ' ' + para + ' ' + in_dir + '/' + f + " "+ "out"
-				os.system(cmd)
+
+				tmp = cmd.split('@@')
+				output = tmp[0] + ' ' + in_dir + '/' + f + " "+ tmp[1]
+				print (output)
+				os.system(output)
 
 
 def analyze(out_dir):
@@ -34,8 +40,8 @@ def analyze(out_dir):
 		outs = os.listdir(out_dir)
 		for out in outs:
 			if not os.path.isdir(out):
-				os.chmod(out, stat.S_IREAD)
-				f = open(out, 'r')
+				#os.chmod(out, stat.S_IREAD)
+				f = open(out_dir+"/"+out, 'r')
 				process_out(f)
 	else:
 		#os.chmod(out_dir,stat.S_IREAD)
@@ -65,8 +71,8 @@ def process_out(f):
 			func = tmp[4]
 
 			## filter
-			if bug == "heap-use-after-free" or "heap-buffer-overflow" or "stack-buffer-overflow" or "global-buffer-overflow" or "stack-use-after-return" \
-					or "stack-use-after-scope" or "initialization-order-fiasco":
+			if bug == "heap-use-after-free" or bug == "heap-buffer-overflow" or bug == "stack-buffer-overflow" or bug == "global-buffer-overflow" or bug == "stack-use-after-return" \
+					or bug == "stack-use-after-scope" or bug == "initialization-order-fiasco":
 
 				item = {"bug": bug, "location": loc, "function": func}
 				if bug_list.count(item) == 0:
@@ -93,7 +99,7 @@ if __name__ == '__main__':
 	#######################################################################
 	parser.add_argument('--binary', '-b', help='path of target binary',default=binary_default)
 	parser.add_argument('--input', '-i',  help='path of crash input files',default=input_default)
-	parser.add_argument('--para', '-p',  help='parameters of binary',default=para_default)
+	parser.add_argument('--cmd', '-c',  help='cmd, using @@ to represent the location of input',default=cmd_default)
 	parser.add_argument('--log', '-l',help='path of bug log dir',default=log_default)
 	parser.add_argument('--url', '-u', help='url of mongo',default=url_default)
 	parser.add_argument('--target', '-t', help='target name in mongo(db name)',default=db_default)
@@ -105,20 +111,21 @@ if __name__ == '__main__':
 			print "must define a input dir"
 			exit(0)
 		else:
-			load_crash()
+			load_crash(args.url,args.target,args.input)
 	if args.autoinput:
-		if not args.input or args.binary:
-			print "must define a input dir and a binary path"
+		if not args.input or not args.cmd or not args.log:
+			print "must define a input dir, a cmd and a log path"
 			exit(0)
 		else:
-			os.putenv("ASAN_OPTIONS","detect_leaks=1:log_path="+args.log)
-			auto_input(args.input,args.binary,args.para)
+			os.environ['ASAN_OPTIONS']= "detect_leaks=1:log_path="+args.log
+			print(os.getenv("ASAN_OPTIONS"))
+			auto_input(args.input,args.cmd)
 	if args.analyze:
 		if not args.log:
 			print "must define a log path"
 			exit(0)
 		else:
 			analyze(args.log)
-	if not args.download or not args.autoinput or not args.analyze:
+	if not args.download and not args.autoinput and not args.analyze:
 		print "must define a mode from '--download' '--autoinput' '--analyze'"
 		exit(0)
