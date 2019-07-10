@@ -96,6 +96,7 @@ if __name__ == '__main__':
 	group.add_argument('--download',  action='store_true', help='download crash files from database, with -u,-t and -i')
 	group.add_argument('--autoinput',  action='store_true',help='auto input crash files, with -i,-b and -p')
 	group.add_argument('--analyze',  action='store_true', help='analyze the log file to find true bugs, with -l')
+	group.add_argument('--all', action='store_true', help='download+auto input+analyze, with -c, -t')
 	#######################################################################
 	parser.add_argument('--binary', '-b', help='path of target binary',default=binary_default)
 	parser.add_argument('--input', '-i',  help='path of crash input files',default=input_default)
